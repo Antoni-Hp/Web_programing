@@ -8,6 +8,7 @@ class Get_in:
   def __init__(self):
     self.root = Tkinter.Tk()
     self.root.geometry("250x230")
+    self.root.resizable(False, False)
     self.login_user = []
     self.global_password = '123456'
     self.create()
@@ -53,6 +54,7 @@ class Gui:
   def __init__ (self, user_list, nick):
     self.main = Tkinter.Tk() # tworze pole nadrzedne
     self.main.geometry("600x400") #definiuje wymiary pola nadrzednego
+    self.main.resizable(False, False)
     self.all_users = user_list
     self.nick = nick
     self.add_widget()
