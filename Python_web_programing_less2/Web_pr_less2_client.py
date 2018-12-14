@@ -2,6 +2,11 @@
 
 import Tkinter, sys
 from Tkconstants import DISABLED, NORMAL
+import socket 
+import select 
+import sys 
+import io
+
 
 class Get_in:
 
@@ -51,7 +56,11 @@ class Get_in:
 
 class Gui:
 
-  def __init__ (self, user_list, nick):
+  def __init__ (self, user_list, nick ):
+    self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+    self.IP_address = str('127.0.0.1') 
+    self.Port = int(10000) 
+    self.server.connect((self.IP_address, self.Port)) 
     self.main = Tkinter.Tk() # tworze pole nadrzedne
     self.main.geometry("600x400") #definiuje wymiary pola nadrzednego
     self.main.resizable(False, False)
@@ -61,10 +70,23 @@ class Gui:
 
   def message(self, event):
     mess = self.write.get() # pobiera tekst z okienka write
+    self.sockets_list = [mess, self.server]
+    self.read_sockets, write_socket, error_socket  = select.select(self.sockets_list,[],[]) 
+    print self.sockets_list
+    self.write.delete(0, Tkinter.END)
     if mess != '':
       self.mess1.configure(state = NORMAL)
       self.all_users.append('Adam')
-      self.mess1.insert(Tkinter.END, '%s> %s \n' %(self.nick, mess)) #wyswietla wprowadzony tekst
+      for socks in self.read_sockets:
+        if socks == self.server:
+            message = socks.recv(2048)
+            self.mess1.insert(Tkinter.END, '%s> %s \n' %(self.nick, message)) #wyswietla wprowadzony tekst
+            self.mess1.see(Tkinter.END) #pokazuje zawsze najnowszy wpis
+        else:
+            message = mess
+            self.server.send(message)
+            print self.nick
+            print message
       self.mess1.see(Tkinter.END) #pokazuje zawsze najnowszy wpis
       self.mess1.configure(state = DISABLED)
 
