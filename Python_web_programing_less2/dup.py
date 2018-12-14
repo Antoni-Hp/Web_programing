@@ -1,31 +1,77 @@
 #!/usr/bin/env python
-import socket
-import binascii
+import socket 
+import select 
+import sys 
+from thread import *
+#AF_INET - domena adresowa gniazda (socket),  SOCK_STREAM - typ gniazda
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#SOL_SOCKET - warstwa gniazda socket.SO_REUSEADDR - powiazanie z gniazdem, 1 - ilosc prob
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 
+  
+  
+# podaje adres Ip
+IP_address = str('127.0.0.1') 
+  
+# podaje nr portu 
+Port = int(10000) 
+  
+# oczekiwanie na polaczenie
+server.bind((IP_address, Port)) 
 
-def main():
-    MCAST_GRP = '224.1.1.1'
-    MCAST_PORT = 5007
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    try:
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    except AttributeError:
-        pass
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
-    sock.bind((MCAST_GRP, MCAST_PORT))
-    host = socket.gethostbyname(socket.gethostname())
-    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(host))
-    sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(host))
-    print'2'
-    while 1:
-        print'3'
-        try:
-            data,addr = sock.recvfrom(1024)
-            print data
-        except socket.error, e:
-            print 'Exception'
-            hexdata = binascii.hexlify(data)
-            print 'Data = %s' %hesdata
-if __name__ == '__main__':
-    main()
-    print "1"
+#slucha 10 aktywnych polaczen  
+server.listen(10) 
+#lista clients
+list_of_clients = [] 
+  
+def clientthread(conn, addr): 
+  
+    # wysylanie wiadomosci po dolaczeniu do chatu 
+#     conn.send("Welcome to this chatroom!") 
+  
+    while True: 
+            try: 
+                message = conn.recv(2048) 
+                if message: 
+                    # wywoluje funcje transmisji by wyslac do wszystkich 
+                    message_to_send = message 
+                    broadcast(message_to_send, conn) 
+  
+                else: 
+                    remove(conn) 
+  
+            except: 
+                continue
+  
+#wyslanie do wszystkich poza osoba wysylajaca"
+def broadcast(message, connection): 
+    for clients in list_of_clients: 
+        if clients!=connection: 
+            try: 
+                clients.send(message) 
+            except: 
+                clients.close() 
+  
+                # if the link is broken, we remove the client 
+                remove(clients) 
+  
+#usuniecie klientow z listy
+def remove(connection): 
+    if connection in list_of_clients: 
+        list_of_clients.remove(connection) 
+  
+while True: 
+  
+    #akceptuje polaczenie i przechowuje adres oraz typ gniazda
+    conn, addr = server.accept() 
+  
+    # dodaje do listy klientow
+    list_of_clients.append(conn) 
+  
+    # wypisuje klientow ktorzy sie polaczyli 
+    print addr[0] + " connected"
+  
+    #tworzy osobny watek dla kazdego klienta
+    start_new_thread(clientthread,(conn,addr))     
+  
+conn.close() 
+server.close() 

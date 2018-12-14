@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
-import tkinter, sys
-from tkinter.constants import DISABLED, NORMAL
+import Tkinter, sys
+from Tkconstants import DISABLED, NORMAL
+import socket 
+import select 
+import sys 
+import io
+
 
 class Get_in:
 
   def __init__(self):
-    self.root = tkinter.Tk()
+    self.root = Tkinter.Tk()
     self.root.geometry("250x230")
     self.root.resizable(False, False)
     self.login_user = []
@@ -17,10 +22,10 @@ class Get_in:
     nick = self.nickname_1.get()
     password = self.password_1.get()
     if nick == '':
-      self.error_nick = tkinter.Label(self.root, text = "Wrong nick", font = ("Red", 9))
+      self.error_nick = Tkinter.Label(self.root, text = "Wrong nick", font = ("Red", 9))
       self.error_nick.place(x = 30, y = 80, height = 15)
     elif password != self.global_password:
-      self.error_password = tkinter.Label(self.root, text = "Wrong password", font = ("red", 9))
+      self.error_password = Tkinter.Label(self.root, text = "Wrong password", font = ("red", 9))
       self.error_password.place(x = 30, y = 160, height = 15)
     else:
       self.login_user.append(nick)
@@ -29,11 +34,11 @@ class Get_in:
       x.start()
 
   def create(self):
-    self.nickname = tkinter.Label(self.root, text = "Get nickname", font = 14)
-    self.nickname_1 = tkinter.Entry(self.root, width = 20,font = 2)
-    self.password = tkinter.Label(self.root, text = "Get password", font = 14)
-    self.password_1 = tkinter.Entry(self.root, width = 20, font = 2)
-    self.log_in = tkinter. Button(self.root, text = 'login')
+    self.nickname = Tkinter.Label(self.root, text = "Get nickname", font = 14)
+    self.nickname_1 = Tkinter.Entry(self.root, width = 20,font = 2)
+    self.password = Tkinter.Label(self.root, text = "Get password", font = 14)
+    self.password_1 = Tkinter.Entry(self.root, width = 20, font = 2)
+    self.log_in = Tkinter. Button(self.root, text = 'login')
     self.root.bind('<Return>', self.check)
     self.log_in.bind('<Button-1>', self.check) 
     self.show_login()
@@ -51,54 +56,80 @@ class Get_in:
 
 class Gui:
 
-  def __init__ (self, user_list, nick):
-    self.main = tkinter.Tk() # tworze pole nadrzedne
+  def __init__ (self, user_list, nick ):
+    self.connection_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+    self.IP_address = str('127.0.0.1') 
+    self.Port = int(10000) 
+    self.connection_socket.connect((self.IP_address, self.Port)) 
+    self.main = Tkinter.Tk() # tworze pole nadrzedne
     self.main.geometry("600x400") #definiuje wymiary pola nadrzednego
     self.main.resizable(False, False)
     self.all_users = user_list
     self.nick = nick
+    self.main.after(1, self.read_from_server)
     self.add_widget()
 
-  def message(self, event):
-    mess = self.write.get() # pobiera tekst z okienka write
-    self.write.delete(0, tkinter.END)
-    if mess != '':
+
+  def read_from_server(self):
+    read_sockets, write_socket, error_socket = select.select([self.connection_socket],[],[], 0.1)
+    for socks in read_sockets:
+      if socks == self.connection_socket:
+        message = socks.recv(2048)
+        message = message.split(";;")
+        if self.all_users.count(message[0]) == 0:
+          self.users(1, message[0])
+        self.mess1.configure(state = NORMAL)
+        self.mess1.insert(Tkinter.END, '%s> %s \n' %(message[0], message[1]))
+        self.mess1.see(Tkinter.END)
+        self.mess1.configure(state = DISABLED)
+    self.main.after(1, self.read_from_server)
+
+
+  def on_message_send_requested(self, event):
+    message = self.text_input.get() # pobiera tekst z okienka write
+    self.text_input.delete(0, Tkinter.END)
+    if message != '':
       self.mess1.configure(state = NORMAL)
-      self.all_users.append('Adam')
-      self.mess1.insert(tkinter.END, '%s> %s \n' %(self.nick, mess)) #wyswietla wprowadzony tekst
-      self.mess1.see(tkinter.END) #pokazuje zawsze najnowszy wpis
+      send_message = "%s;;%s" %(self.nick, message)
+      self.connection_socket.send(send_message)
+      self.mess1.insert(Tkinter.END, '%s> %s \n' %(self.nick, message)) #wyswietla wprowadzony tekst
+      self.mess1.see(Tkinter.END) #pokazuje zawsze najnowszy wpis
       self.mess1.configure(state = DISABLED)
 
-  def users(self, option):
+  def users(self, option, user):
     self.user.configure(state = NORMAL)
+    if option == 1:
+      self.all_users.append(user)
+    elif option == 0:
+      self.all_users.remove(user)
     for i in self.all_users:
-      self.user.insert(tkinter.END, '%s \n' %i)
-    self.user.see(tkinter.END)
+      self.user.insert(Tkinter.END, '%s \n' %i)
+    self.user.see(Tkinter.END)
     self.user.configure(state = DISABLED)
 
   def add_widget(self):
-    self.mess1 = tkinter.Text(self.main, height = 17, width = 30, font = 2, state = DISABLED) #tworzy pole tekstowe w strefie main, state = blokuje wpisywanie w okno
-    self.write = tkinter.Entry(self.main, width = 40, font = 2) #tworzy pole dp wprowadzania tekstu w strefie main
-    self.send = tkinter.Button(self.main, text = "send") #tworzy przycisk w strefie main
-    self.send.bind('<Button-1>', self.message) # akcja dla klikniecia przycisku myszki
-    self.scroll_1 = tkinter.Scrollbar(self.main, command = self.mess1.yview) #dodanie scrolla 
+    self.mess1 = Tkinter.Text(self.main, height = 17, width = 30, font = 2, state = DISABLED) #tworzy pole tekstowe w strefie main, state = blokuje wpisywanie w okno
+    self.text_input = Tkinter.Entry(self.main, width = 40, font = 2) #tworzy pole dp wprowadzania tekstu w strefie main
+    self.send = Tkinter.Button(self.main, text = "send") #tworzy przycisk w strefie main
+    self.send.bind('<Button-1>', self.on_message_send_requested) # akcja dla klikniecia przycisku myszki
+    self.scroll_1 = Tkinter.Scrollbar(self.main, command = self.mess1.yview) #dodanie scrolla 
     self.mess1.configure(yscrollcommand = self.scroll_1.set) #config scroll
-    self.user = tkinter.Text(self.main, height = 10, width = 20, font = 2, state = DISABLED)
-    self.scroll_2 = tkinter.Scrollbar(self.main, command = self.user.yview)
+    self.user = Tkinter.Text(self.main, height = 10, width = 20, font = 2, state = DISABLED)
+    self.scroll_2 = Tkinter.Scrollbar(self.main, command = self.user.yview)
     self.user.configure(yscrollcommand = self.scroll_2.set)
-    self.label = tkinter.Label(self.main, text = 'Users', font = ("Helvetica", 16))
-    self.main.bind('<Return>', self.message)
+    self.label = Tkinter.Label(self.main, text = 'Users', font = ("Helvetica", 16))
+    self.main.bind('<Return>', self.on_message_send_requested)
     self.show() #wywolanie funkcji
 
   def show(self):
-    self.write.place(x = 50, y = 350, height = 30) #definicje css
+    self.text_input.place(x = 50, y = 350, height = 30) #definicje css
     self.mess1.place(x = 15, y = 15)
     self.send.place(x = 455, y=350, height = 30, width = 95 )
     self.scroll_1.place(x = 320, y = 16, height = 327, width = 20 )
     self.user.place(x = 350, y = 100)
     self.scroll_2.place(x = 555, y = 101, height = 194, width = 20 )
     self.label.place(x = 430, y = 70)
-    self.users(1)
+#     self.users(2)
 
   def start(self):
     self.main.mainloop()
