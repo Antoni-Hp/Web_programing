@@ -24,19 +24,14 @@ server.listen(10)
 list_of_clients = [] 
   
 def clientthread(conn, addr): 
-  
-    # wysylanie wiadomosci po dolaczeniu do chatu 
-    conn.send("Welcome to this chatroom!") 
+
   
     while True: 
             try: 
                 message = conn.recv(2048) 
                 if message: 
-  
-                    print "<" + addr[0] + "> " + message #do wywalenia
-  
                     # wywoluje funcje transmisji by wyslac do wszystkich 
-                    message_to_send = "<" + addr[0] + "> " + message 
+                    message_to_send = message 
                     broadcast(message_to_send, conn) 
   
                 else: 
